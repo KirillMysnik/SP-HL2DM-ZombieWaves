@@ -1,0 +1,8 @@
+npc_headcrab
+npc_headcrab_black
+npc_headcrab_fast
+npc_poisonzombie
+npc_zombie_torso
+npc_zombie
+npc_fastzombie
+npc_fastzombie_torso
