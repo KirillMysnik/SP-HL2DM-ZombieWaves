@@ -44,8 +44,9 @@ class ZombieSpawn:
 
 class ZombieSpawnStorage(list):
     def load_from_file(self):
+        self.clear()
+
         if not self.filepath.isfile():
-            self.clear()
             return
 
         with open(self.filepath, 'r') as f:
