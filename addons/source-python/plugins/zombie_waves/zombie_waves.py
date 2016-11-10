@@ -1,9 +1,12 @@
 import json
 
+from core import PLATFORM
 from engines.server import global_vars
 from entities.entity import Entity
-from listeners import OnEntityDeleted, OnEntitySpawned, OnLevelInit
+from entities.hooks import EntityCondition, EntityPreHook
+from listeners import OnEntityDeleted, OnEntitySpawned, OnLevelEnd, OnLevelInit
 from mathlib import Vector
+from memory import Convention, DataType, make_object
 from paths import GAME_PATH, PLUGIN_DATA_PATH
 
 from .info import info
@@ -11,7 +14,13 @@ from .info import info
 
 MAPDATA_PATH = GAME_PATH / "mapdata" / "zombie_waves"
 
+if PLATFORM == "windows":
+    EVENT_KILLED_INDEX = 66
+else:
+    EVENT_KILLED_INDEX = 67
+
 unloading = False
+working = True
 valid_npc_classnames = []
 with open(PLUGIN_DATA_PATH / "zombie_waves" / "valid_npcs.res") as f:
     for line in f:
@@ -78,19 +87,31 @@ def unload():
 
 @OnLevelInit
 def listener_on_level_init(level_name):
+    global working
+    working = True
+
     zombie_spawn_storage.load_from_file()
     create_zombie_entities()
 
 
+@OnLevelEnd
+def listener_on_level_end():
+    global working
+    working = False
+
+
 @OnEntityDeleted
 def listener_on_entity_deleted(base_entity):
-    if unloading:
-        return
-
     if not base_entity.is_networked():
         return
 
     zombie_entities.pop(base_entity.index, None)
+
+    if unloading:
+        return
+
+    if not working:
+        return
 
     if not zombie_entities:
         create_zombie_entities()
@@ -102,5 +123,26 @@ def listener_on_entity_spawned(base_entity):
         return
 
     entity = Entity(base_entity.index)
+    entity.spawn_flags |= 512
     entity.set_key_value_int('sleepstate', 0)
     entity.call_input('SetRelationship', 'player D_HT 99')
+
+
+def make_event_killed(entity):
+    return entity.pointer.make_virtual_function(
+        EVENT_KILLED_INDEX,
+        Convention.THISCALL,
+        [DataType.POINTER, DataType.POINTER],
+        DataType.VOID
+    )
+
+
+@EntityPreHook(EntityCondition.equals_entity_classname(*valid_npc_classnames),
+               make_event_killed)
+def pre_event_killed(args):
+    entity = make_object(Entity, args[0])
+    if entity.classname not in valid_npc_classnames:
+        return
+
+    entity.remove()
+    return True
