@@ -4,7 +4,9 @@ from core import PLATFORM
 from engines.server import global_vars
 from entities.entity import Entity
 from entities.hooks import EntityCondition, EntityPreHook
-from listeners import OnEntityDeleted, OnEntitySpawned, OnLevelEnd, OnLevelInit
+from listeners import (
+    OnEntityDeleted, OnEntitySpawned, OnLevelEnd, OnLevelInit,
+    OnServerActivate)
 from mathlib import Vector
 from memory import Convention, DataType, make_object
 from paths import GAME_PATH, PLUGIN_DATA_PATH
@@ -88,10 +90,14 @@ def unload():
 
 @OnLevelInit
 def listener_on_level_init(level_name):
+    zombie_spawn_storage.load_from_file()
+
+
+@OnServerActivate
+def on_server_activate(edicts, edict_count, max_clients):
     global working
     working = True
 
-    zombie_spawn_storage.load_from_file()
     create_zombie_entities()
 
 
